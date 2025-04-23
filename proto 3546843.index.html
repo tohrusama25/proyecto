@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulación Ébola con IA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #00ffff;
+      --secondary-color: #00ccff;
+      --bg-gradient: radial-gradient(circle at center, #0f2027, #203a43, #2c5364);
+      --text-color: #0ff;
+      --error-color: #ff4c4c;
+      --success-color: #4caf50;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      font-family: 'Orbitron', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      padding: 10px;
+      color: var(--text-color);
+      min-height: 100vh;
+    }
+
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+
+    .login-box, .simulacion-container {
+      background: rgba(0, 0, 0, 0.3);
+      border: 2px solid var(--primary-color);
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      box-shadow: 0 0 30px var(--primary-color), 0 0 60px var(--secondary-color);
+      animation: neon-glow 2s infinite alternate;
+      margin: 10px auto;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .login-box:hover, .simulacion-container:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 40px var(--primary-color), 0 0 80px var(--secondary-color);
+    }
+
+    h1, h2 {
+      text-align: center;
+      margin-bottom: 15px;
+      color: var(--primary-color);
+      text-shadow: 0 0 10px var(--primary-color);
+      font-size: 1.5em;
+    }
+
+    label {
+      font-weight: bold;
+      margin-bottom: 5px;
+      display: block;
+      color: #ccc;
+    }
+
+    input, select {
+      width: 100%;
+      max-width: 400px;
+      padding: 8px;
+      border: 1px solid var(--primary-color);
+      border-radius: 8px;
+      margin-bottom: 20px;
+      background-color: #111;
+      color: var(--text-color);
+      font-size: 0.9em;
+    }
+
+    button {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 15px var(--primary-color);
+      transition: all 0.3s;
+      font-size: 0.9em;
+    }
+
+    button:hover {
+      background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+      box-shadow: 0 0 30px var(--primary-color);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    @keyframes neon-glow {
+      0%, 100% {
+        box-shadow: 0 0 15px var(--primary-color);
+        text-shadow: 0 0 10px var(--primary-color);
+      }
+      50% {
+        box-shadow: 0 0 35px var(--primary-color), 0 0 60px var(--secondary-color);
+        text-shadow: 0 0 20px var(--primary-color);
+      }
+    }
+
+    .param-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .simulation-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .graph-container {
+      position: relative;
+      height: 25vh;
+      width: 100%;
+    }
+
+    .results-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .result-card {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      font-size: 0.9em;
+    }
+
+    .modelo-matematico, #ai-box {
+      padding: 15px;
+      font-size: 0.9em;
+    }
+
+    @media (max-width: 768px) {
+      .param-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .simulation-controls {
+        justify-content: center;
+      }
+    }
+
+
+    /* 🔒 Ocultar simulación inicialmente */
+    #simulacion {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="particles-js"></div>
+
+  <!-- 🔐 LOGIN -->
+  <div class="login-box" id="login">
+    <h2>Iniciar Sesión</h2>
+    <form id="login-form">
+      <label for="usuario">Correo electrónico</label>
+      <input type="email" id="usuario" placeholder="ejemplo@correo.com" required>
+
+      <label for="contraseña">Contraseña</label>
+      <input type="password" id="contraseña" placeholder="Ingresa tu contraseña" required>
+
+      <button type="submit">Acceder</button>
+    </form>
+  </div>
+
+  <!-- 📊 ELEMENTOS VISUALES -->
+  <div class="simulacion-container" id="simulacion">
+    <h1>Simulación del Virus del Ébola (Modelo SIRD Simplificado)</h1>
+  
+    <div class="param-controls">
+      <div><label for="population">Población Total:</label><input type="number" id="population" value="1000" min="1"></div>
+      <div><label for="infected">Infectados Iniciales:</label><input type="number" id="infected" value="1" min="1"></div>
+      <div><label for="days">Días de Simulación:</label><input type="number" id="days" value="100" min="1"></div>
+    </div>
+
+    <div class="simulation-controls">
+      <button id="start-sim">Iniciar Simulación</button>
+      <button id="pause-sim" disabled>Pausar</button>
+      <button id="reset-sim">Reiniciar</button>
+      <button id="export-sim">Exportar Datos</button>
+    </div>
+
+    <div class="graph-container">
+      <canvas id="chart" width="1000" height="400"></canvas>
+    </div>
+
+    <div class="results-container">
+      <div class="result-card"><h3>Resultados Finales</h3><p id="final-results">-</p></div>
+      <div class="result-card"><h3>Pico de Infección</h3><p id="peak-results">-</p></div>
+      <div class="result-card"><h3>Estadísticas</h3><p id="stats-results">-</p></div>
+    </div>
+
+    <div class="modelo-matematico">
+      <h2>Modelo Matemático (SIRD)</h2>
+      <p>
+        <strong>(1)</strong> &nbsp; dS(t)/dt = -β · S(t) · I(t) / N(t) <br>
+        <strong>(2)</strong> &nbsp; dI(t)/dt = β · S(t) · I(t) / N(t) - γ · I(t) - μ · I(t) <br>
+        <strong>(3)</strong> &nbsp; dR(t)/dt = γ · I(t) <br>
+        <strong>(4)</strong> &nbsp; dD(t)/dt = μ · I(t)
+      </p>
+    </div>
+
+    <div id="ai-box">
+      <h2>🤖 Asistente Epidemiológico</h2>
+      <input type="text" id="ai-question" placeholder="Ej: ¿Cómo mejorar el modelo SIRD?">
+      <button id="ask-ai">Preguntar</button>
+      <div id="ai-answer">Aquí aparecerá la respuesta...</div>
+    </div>
+  </div>
+
+  <!-- Librerías -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+
+  <script>
+    // Variables globales
+    let chart = null;
+    let simulationInterval = null;
+    let day = 0;
+    let simulationData = [];
+    let currentSimulation = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initParticles();
+      setupAuth();
+      setupSimulation();
+      setupAI();
+    });
+
+    function setupAuth() {
+      const loginForm = document.getElementById('login-form');
+      const loginContainer = document.getElementById('login');
+      const simulationContainer = document.getElementById('simulacion');
+
+      loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('usuario').value.trim();
+        const password = document.getElementById('contraseña').value;
+
+        if (email && password) {
+          loginContainer.style.display = 'none';
+          simulationContainer.style.display = 'block';
+          initChart();
+        } else {
+          alert('Por favor, ingrese un correo electrónico y una contraseña válidos.');
+        }
+      });
+    }
+
+    function setupSimulation() {
+      const startBtn = document.getElementById('start-sim');
+      const pauseBtn = document.getElementById('pause-sim');
+      const resetBtn = document.getElementById('reset-sim');
+      const exportBtn = document.getElementById('export-sim');
+
+      startBtn.addEventListener('click', startSimulation);
+      pauseBtn.addEventListener('click', pauseSimulation);
+      resetBtn.addEventListener('click', resetSimulation);
+      exportBtn.addEventListener('click', exportData);
+    }
+
+    function initChart() {
+      const canvas = document.getElementById('chart');
+      
+      // Destruir gráfico existente si hay uno
+      if (chart) {
+        chart.destroy();
+      }
+
+      chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            { label: 'Susceptibles', data: [], borderColor: '#4c78ff', fill: false },
+            { label: 'Infectados', data: [], borderColor: '#ff4c4c', fill: false },
+            { label: 'Recuperados', data: [], borderColor: '#4caf50', fill: false },
+            { label: 'Muertes', data: [], borderColor: '#9c27b0', fill: false }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: 'Día' } },
+            y: { title: { display: true, text: 'Personas' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function startSimulation() {
+      // Limpiar simulación anterior
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+      }
+
+      // Obtener parámetros
+      const N = parseInt(document.getElementById('population').value) || 1000;
+      const I0 = parseInt(document.getElementById('infected').value) || 1;
+      const days = parseInt(document.getElementById('days').value) || 100;
+
+      // Validar parámetros
+      if (I0 >= N) {
+        alert('Los infectados iniciales no pueden ser mayores o iguales a la población total');
+        return;
+      }
+
+      // Inicializar variables
+      let S = N - I0;
+      let I = I0;
+      let R = 0;
+      let D = 0;
+      const beta = 0.3;  // Tasa de transmisión
+      const gamma = 0.05; // Tasa de recuperación
+      const mu = 0.01;    // Tasa de mortalidad
+
+      // Reiniciar gráfico y datos
+      day = 0;
+      chart.data.labels = [];
+      chart.data.datasets.forEach(dataset => dataset.data = []);
+      chart.update();
+      simulationData = [];
+
+      // Habilitar/deshabilitar botones
+      document.getElementById('start-sim').disabled = true;
+      document.getElementById('pause-sim').disabled = false;
+
+      // Iniciar simulación
+      simulationInterval = setInterval(() => {
+        if (day > days || I < 1) {
+          clearInterval(simulationInterval);
+          document.getElementById('start-sim').disabled = false;
+          document.getElementById('pause-sim').disabled = true;
+          updateResults();
+          return;
+        }
+
+        // Calcular nuevas tasas
+        const newInfected = beta * S * I / N;
+        const newRecovered = gamma * I;
+        const newDeaths = mu * I;
+
+        // Actualizar valores
+        S -= newInfected;
+        I += newInfected - newRecovered - newDeaths;
+        R += newRecovered;
+        D += newDeaths;
+
+        // Actualizar gráfico
+        chart.data.labels.push(day);
+        chart.data.datasets[0].data.push(Math.round(S));
+        chart.data.datasets[1].data.push(Math.round(I));
+        chart.data.datasets[2].data.push(Math.round(R));
+        chart.data.datasets[3].data.push(Math.round(D));
+        chart.update();
+
+        // Guardar datos
+        simulationData.push({
+          day,
+          susceptible: S,
+          infected: I,
+          recovered: R,
+          deaths: D
+        });
+
+        day++;
+      }, 300);
+    }
+
+    function pauseSimulation() {
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        document.getElementById('pause-sim').disabled = true;
+        document.getElementById('start-sim').disabled = false;
+      }
+    }
+
+    function resetSimulation() {
+      // Limpiar intervalo
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+      }
+
+      // Reiniciar gráfico
+      initChart();
+
+      // Reiniciar variables
+      day = 0;
+      simulationData = [];
+
+      // Restablecer botones
+      document.getElementById('start-sim').disabled = false;
+      document.getElementById('pause-sim').disabled = true;
+
+      // Limpiar resultados
+      document.getElementById('final-results').textContent = '-';
+      document.getElementById('peak-results').textContent = '-';
+      document.getElementById('stats-results').textContent = '-';
+    }
+
+    function exportData() {
+      if (simulationData.length === 0) {
+        alert('No hay datos para exportar. Ejecute una simulación primero.');
+        return;
+      }
+
+      let csv = 'Día,Susceptibles,Infectados,Recuperados,Muertes\n';
+      simulationData.forEach(day => {
+        csv += `${day.day},${day.susceptible},${day.infected},${day.recovered},${day.deaths}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `simulacion_ebola_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function updateResults() {
+      if (simulationData.length === 0) return;
+
+      const lastDay = simulationData[simulationData.length - 1];
+      const peakDay = simulationData.reduce((max, day) => day.infected > max.infected ? day : max);
+      const mortalityRate = (lastDay.deaths / (lastDay.recovered + lastDay.deaths) * 100).toFixed(2);
+
+      document.getElementById('final-results').innerHTML = `
+        <strong>Susceptibles:</strong> ${Math.round(lastDay.susceptible)}<br>
+        <strong>Infectados:</strong> ${Math.round(lastDay.infected)}<br>
+        <strong>Recuperados:</strong> ${Math.round(lastDay.recovered)}<br>
+        <strong>Muertes:</strong> ${Math.round(lastDay.deaths)}<br>
+        <strong>Tasa de mortalidad:</strong> ${mortalityRate}%
+      `;
+
+      document.getElementById('peak-results').innerHTML = `
+        <strong>Día:</strong> ${peakDay.day}<br>
+        <strong>Infectados:</strong> ${Math.round(peakDay.infected)}<br>
+        <strong>Recuperados:</strong> ${Math.round(peakDay.recovered)}<br>
+        <strong>Muertes:</strong> ${Math.round(peakDay.deaths)}
+      `;
+
+      const totalCases = simulationData.reduce((sum, day) => sum + day.infected, 0);
+      const avgCases = Math.round(totalCases / simulationData.length);
+      document.getElementById('stats-results').innerHTML = `
+        <strong>Casos totales:</strong> ${totalCases}<br>
+        <strong>Promedio diario:</strong> ${avgCases}
+      `;
+    }
+
+    function setupAI() {
+      const askBtn = document.getElementById('ask-ai');
+      const questionInput = document.getElementById('ai-question');
+      const answerDiv = document.getElementById('ai-answer');
+      
+      askBtn.addEventListener('click', handleAIQuestion);
+      questionInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleAIQuestion();
+      });
+      
+      async function handleAIQuestion() {
+        const question = questionInput.value.trim();
+        
+        if (!question) {
+          answerDiv.innerHTML = '<div class="error-message">Por favor, escribe una pregunta</div>';
+          return;
+        }
+        
+        answerDiv.innerHTML = '<div>Procesando tu pregunta...</div>';
+        
+        try {
+          const response = await getAIResponse(question);
+          answerDiv.innerHTML = `<div class="success-message">${response}</div>`;
+        } catch (error) {
+          answerDiv.innerHTML = `<div class="error-message">Error al conectar con el asistente: ${error.message}</div>`;
+        }
+      }
+      
+      async function getAIResponse(question) {
+        // Simulación de respuesta de IA (en un caso real, aquí harías una llamada a una API)
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+        
+        const questionLower = question.toLowerCase();
+        
+        if (questionLower.includes('modelo')) {
+          return `El modelo SIRD es una extensión del modelo SIR tradicional que incluye las muertes (D). 
+          Las ecuaciones diferenciales que lo gobiernan son:
+          1. dS/dt = -βSI/N
+          2. dI/dt = βSI/N - γI - μI
+          3. dR/dt = γI
+          4. dD/dt = μI
+          Donde β es la tasa de infección, γ la tasa de recuperación y μ la tasa de mortalidad.`;
+        }
+        
+        if (questionLower.includes('ebola')) {
+          return `El ébola es una enfermedad viral grave con tasas de mortalidad entre 25% y 90%. 
+          Se transmite por contacto directo con fluidos corporales. 
+          El período de incubación es de 2 a 21 días. 
+          Este modelo simplificado ayuda a entender su propagación.`;
+        }
+        
+        if (questionLower.includes('mejorar')) {
+          return `Para mejorar el modelo podrías:
+          1. Añadir un compartimento de expuestos (E) para el período de incubación (modelo SEIRD)
+          2. Considerar tasas variables en el tiempo
+          3. Incorporar medidas de control como cuarentenas
+          4. Añadir estocasticidad para poblaciones pequeñas`;
+        }
+        
+        return `Como asistente epidemiológico, puedo explicarte sobre:
+        - El modelo matemático SIRD
+        - Características del virus del ébola
+        - Cómo interpretar los resultados
+        - Posibles mejoras al modelo
+        ¿En qué aspecto necesitas más información?`;
+      }
+    }
+
+    function initParticles() {
+      particlesJS('particles-js', {
+        particles: {
+          number: { value: 35, density: { enable: true, value_area: 800 } },
+          color: { value: '#00ffcc' },
+          shape: { type: 'circle' },
+          opacity: { value: 0.7, random: true },
+          size: { value: 8, random: true },
+          move: {
+            enable: true,
+            speed: 2,
+            direction: 'none',
+            random: true,
+            straight: false,
+            out_mode: 'out'
+          }
+        },
+        interactivity: {
+          detect_on: 'canvas',
+          events: {
+            onhover: { enable: true, mode: 'repulse' },
+            onclick: { enable: true, mode: 'push' },
+            resize: true
+          },
+          modes: {
+            repulse: { distance: 100, duration: 0.4 },
+            push: { particles_nb: 2 }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
